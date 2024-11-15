@@ -25,10 +25,13 @@ END
 echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 
-# Configure DHCP server
+# Configure DHCP server (dnsmasq)
 sudo cat > /etc/dnsmasq.conf << 'END'
 interface=eth1
-dhcp-range=100.100.100.100,100.100.100.110,12h
+dhcp-range=100.100.100.100,100.100.100.110,255.255.255.0,24h
+dhcp-option=3,100.100.100.1
+dhcp-option=6,8.8.8.8,8.8.4.4
+dhcp-host=*,100.100.100.100,infinite
 END
 
 # Configure Samba
@@ -108,6 +111,7 @@ sudo systemctl enable dnsmasq
 # Setup NordVPN (requires manual login after reboot)
 nordvpn set autoconnect on
 nordvpn set killswitch on
+nordvpn whitelist add port 22
 
 echo "Setup complete! Please reboot and then run 'nordvpn login' to complete NordVPN setup."
 EOF
