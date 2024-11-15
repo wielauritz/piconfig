@@ -4,8 +4,13 @@
 cat > setup.sh << 'EOF'
 #!/bin/bash
 
+# Add NordVPN repository
+sh <(curl -sSf https://downloads.nordcdn.com/apps/linux/install.sh)
+
 # Update and install packages
-sudo apt update && sudo apt install -y openvpn nordvpn usbmount samba samba-common-bin dnsmasq
+sudo apt update
+sudo apt install -y openvpn iptables samba samba-common-bin dnsmasq udev
+sudo apt install -y nordvpn
 
 # Configure network interfaces
 sudo cat > /etc/network/interfaces << 'END'
@@ -25,7 +30,7 @@ END
 echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 
-# Configure DHCP server (dnsmasq)
+# Configure DHCP server
 sudo cat > /etc/dnsmasq.conf << 'END'
 interface=eth1
 dhcp-range=100.100.100.100,100.100.100.110,255.255.255.0,24h
@@ -34,7 +39,12 @@ dhcp-option=6,8.8.8.8,8.8.4.4
 dhcp-host=*,100.100.100.100,infinite
 END
 
+# Create USB mount directory
+sudo mkdir -p /media/usb
+sudo chmod 775 /media/usb
+
 # Configure Samba
+sudo mkdir -p /etc/samba
 sudo cat > /etc/samba/smb.conf << 'END'
 [global]
    workgroup = WORKGROUP
@@ -52,13 +62,9 @@ sudo cat > /etc/samba/smb.conf << 'END'
    directory mask = 0775
 END
 
-# Setup USB mount directories
-sudo mkdir -p /media/usb
-sudo chmod 775 /media/usb
-
 # Create Samba user and group
-sudo groupadd smbgroup
-sudo useradd -m -G smbgroup smbuser
+sudo groupadd smbgroup 2>/dev/null || true
+sudo useradd -m -G smbgroup smbuser 2>/dev/null || true
 echo -e "raspberry\nraspberry" | sudo smbpasswd -a smbuser
 
 # Configure iptables
@@ -107,6 +113,9 @@ sudo systemctl daemon-reload
 sudo systemctl enable vpn-router
 sudo systemctl enable smbd
 sudo systemctl enable dnsmasq
+
+# Wait for NordVPN service to be available
+sleep 5
 
 # Setup NordVPN (requires manual login after reboot)
 nordvpn set autoconnect on
